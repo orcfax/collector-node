@@ -1,0 +1,4 @@
+# requirements for the production project.
+
+python-dotenv==1.0.1
+websockets==12.0
