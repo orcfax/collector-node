@@ -86,7 +86,7 @@ async def fetch_and_store(feed: str):
 
     # Stagger the collection of the data in this script so that the
     # validator node isn't flooded.
-    await asyncio.sleep(random.randint(1, 10))
+    await asyncio.sleep(random.randint(1, 20))
 
     # Fetch the data to send.
     data_to_send = fetch_data(feed=feed)
