@@ -77,7 +77,7 @@ def fetch_data(feed: str) -> dict:
     except json.decoder.JSONDecodeError as err:
         logger.error("json decode failed: %s", err)
         return res
-    logger.warning("stderr: %s", stderr)
+    logger.info("stderr: %s", stderr)
     return stdout.get(feed)
 
 
