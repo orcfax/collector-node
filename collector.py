@@ -19,11 +19,13 @@ import json
 import logging
 import os
 import random
+import ssl
 import subprocess
 import sys
 import time
 from typing import Final
 
+import certifi
 import websockets
 from dotenv import load_dotenv
 
@@ -79,6 +81,13 @@ def fetch_data(feed: str) -> dict:
     return stdout.get(feed)
 
 
+def _return_ca_ssl_context():
+    """Return an ssl context for testing a connection to a validator
+    signed by a certificate authority.
+    """
+    return ssl.create_default_context(cafile=certifi.where())
+
+
 async def fetch_and_store(feed: str):
     """Fetch results from the collector software and send them to the
     validator.
@@ -95,6 +104,11 @@ async def fetch_and_store(feed: str):
         timestamp = data_to_send["message"]["timestamp"]
         logger.info("sending message from id: %s with timestamp: %s", id_, timestamp)
         validator_connection = f"{VALIDATOR_URI}/{id_}/"
+
+        # Default to lhe default root certificates location.
+        if validator_connection.startswith("wss://"):
+            _return_ca_ssl_context()
+
         logger.info("validator connection: %s", validator_connection)
         cert = None
         async with websockets.connect(
