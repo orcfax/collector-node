@@ -106,14 +106,14 @@ async def fetch_and_store(feed: str):
         validator_connection = f"{VALIDATOR_URI}/{id_}/"
 
         # Default to lhe default root certificates location.
+        ssl_context = None
         if validator_connection.startswith("wss://"):
-            _return_ca_ssl_context()
+            ssl_context = _return_ca_ssl_context()
 
         logger.info("validator connection: %s", validator_connection)
-        cert = None
         async with websockets.connect(
             validator_connection,
-            ssl=cert,
+            ssl=ssl_context,
             user_agent_header="chronicle-labs/oracle-suite-collector-WebSocket",
         ) as websocket:
             await websocket.send(json.dumps(data_to_send))
