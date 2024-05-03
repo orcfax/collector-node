@@ -1,0 +1,21 @@
+# The Ogmios service (part of systemd)
+# file: /etc/systemd/system/ogmios.service
+
+[Unit]
+Description      = Ogmios service
+Wants            = network-online.target
+After            = network-online.target
+
+[Service]
+User             = orcfax
+Type             = simple
+WorkingDirectory = /home/orcfax/ogmio5/
+ExecStart        = /bin/bash -c '/home/orcfax/ogmio5/start_ogmios.sh'
+KillSignal       = SIGINT
+TimeoutStopSec   = 300
+LimitNOFILE      = 32768
+Restart          = always
+RestartSec       = 5
+
+[Install]
+WantedBy         = multi-user.target
