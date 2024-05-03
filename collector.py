@@ -94,6 +94,16 @@ except KeyError:
         "cnt index database loc needs setting, e.g. `export CNT_DB_NAME=/path/to/cnt/database.db`"
     )
     sys.exit(1)
+try:
+    GOFER: Final[str] = os.environ["GOFER"]
+    if not os.path.exists(GOFER):
+        raise RuntimeError(f"gofer cannot be found: {GOFER}")
+    logger.info("gofer loc: %s", GOFER)
+except KeyError:
+    logger.error(
+        "gofer location needs to be configured, e.g. `export GOFER=/path/to/gofer`"
+    )
+    sys.exit(1)
 
 
 async def read_identity() -> dict:
@@ -167,8 +177,7 @@ async def fetch_cex_data(feed: str) -> dict:
     try:
         ps_out = subprocess.run(
             [
-                # "/home/orcfax/collector/gofer",
-                "gofer",
+                GOFER,
                 "data",
                 feed,
                 "-o",
