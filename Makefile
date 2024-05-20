@@ -3,9 +3,21 @@
 .PHONY: tar-source upgrade
 
 tar-source: package-deps                                    ## Package repository as tar for easy distribution
+	rm -rf tar/
+	mkdir tar/
+	git-archive-all --prefix collector-node/ tar/collector-node-v0.0.0.tar.gz
+
+package-deps:                                               ## Upgrade dependencies for packaging
+	python3 -m pip install -U twine wheel build git-archive-all
+
+package-source: package-deps clean                          ## Package the source code
+	python -m build .
+
+clean:                                                      ## Clean the package directory
+	rm -rf src/*.egg-info/
+	rm -rf build/
+	rm -rf dist/
 	rm -rf tar-src/
-	mkdir tar-src/
-	git-archive-all --prefix template/ tar-src/template-v0.0.0.tar.gz
 
 pre-commit-checks:                                          ## Run pre-commit-checks.
 	pre-commit run --all-files
