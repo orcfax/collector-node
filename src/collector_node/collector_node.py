@@ -280,6 +280,7 @@ async def main():
 
     # Stagger the collection of the data in this script so that the
     # validator node isn't flooded each round.
+    logging.info("collector-node version: '%s'", get_version())
     await asyncio.sleep(random.randint(1, 20))
     identity = await read_identity()
     await fetch_and_send(identity)
