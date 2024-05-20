@@ -1,0 +1,35 @@
+[project]
+
+name = "collector-node"
+dynamic = ["version"]
+description = "Orcfax collector node"
+readme = "README.md"
+
+requires-python = ">=3.9"
+
+authors = [
+  {name = "R. Spencer", email = "ross@orcfax.io" },
+]
+
+# Optional.
+#
+# Packages installed by pip when the project is installed.
+dependencies = [
+    "certifi==2024.2.2",
+    "python-dotenv==1.0.1",
+    "websockets==12.0",
+    "simple-sign==0.0.1rc1",
+]
+
+[project.urls]
+"Homepage" = "https://orcfax.io"
+"Source" = "https://github.com/orcfax/collector-node/"
+
+[project.scripts]
+collector-node = "collector_node.collector_node:main"
+
+[build-system]
+requires = ["setuptools>=67.8.0", "wheel", "setuptools_scm[toml]>=7.1.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
