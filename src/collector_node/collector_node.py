@@ -214,20 +214,33 @@ async def fetch_and_send(identity: dict) -> None:
 
     # CEX feeds. Others can be added to the array as required,
     # e,g, [ "ADA/USD", "ADA/EUR", "USDT/USD" ]
-    cex_feeds = ["ADA/USD"]
+    cex_feeds = [
+        "ADA/USD",
+        "ADA-EUR",
+    ]
 
     # DEX feeds. Others can be added as per cex_feeds as long as they
     # are in DEX_PAIRS.
     dex_feeds = [
         "FACT-ADA",
+        "NEWM-ADA",
+        "WMT-ADA",
+        # Sponsored.
         "ADA-DJED",
+        "ADA-iUSD",
+        "ADA-USDM",
+        "HUNT-ADA",
+        "iBTC-ADA",
+        "iETH-ADA",
         "LENFI-ADA",
         "LQ-ADA",
-        "WMT-ADA",
-        "NEWM-ADA",
+        "MIN-ADA",
+        "SHEN-ADA",
+        "SNEK_ADA",
     ]
 
     data_cex = fetch_cex_feeds(cex_feeds)
+    data_dex = []
     if CNT_ENABLED:
         data_dex = await fetch_dex_feeds(dex_feeds, identity)
 
