@@ -216,7 +216,7 @@ async def fetch_and_send(identity: dict) -> None:
     # e,g, [ "ADA/USD", "ADA/EUR", "USDT/USD" ]
     cex_feeds = [
         "ADA/USD",
-        "ADA-EUR",
+        "ADA/EUR",
     ]
 
     # DEX feeds. Others can be added as per cex_feeds as long as they
