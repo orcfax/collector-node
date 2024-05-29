@@ -79,6 +79,8 @@ logging.basicConfig(
 # Default to UTC time.
 logging.Formatter.converter = time.gmtime
 
+# pylint: disable=E1121
+
 
 async def read_identity() -> dict:
     """Read the node identity file.
@@ -280,8 +282,8 @@ async def fetch_and_send(identity: dict) -> None:
         )
 
 
-async def main():
-    """Primary entry point of this script.
+async def collector_main():
+    """Collector node main.
 
     The script is designed so that it is staggered between 1 and 20 seconds
     so that that validator nodes are not overloaded.
@@ -299,5 +301,10 @@ async def main():
     await fetch_and_send(identity)
 
 
-if __name__ == "__main__":
+def main():
+    """Primary entry point of this script."""
     asyncio.run(main())
+
+
+if __name__ == "__main__":
+    main()
