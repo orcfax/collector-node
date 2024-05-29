@@ -26,8 +26,8 @@ import time
 from typing import Final
 
 import certifi
+import websocket
 import websockets
-from pycardano import OgmiosChainContext
 from simple_sign.sign import sign_with_key
 
 CNT_ENABLED: Final[bool] = True
@@ -60,7 +60,7 @@ except ModuleNotFoundError:
 
 try:
     # Import CNT related config.
-    from cnt_collector_node.config import OGMIOS_URL, network
+    from cnt_collector_node.config import OGMIOS_URL
     from cnt_collector_node.helper_functions import check_tokens_pair
     from cnt_collector_node.pairs import DEX_PAIRS
 except ModuleNotFoundError:
@@ -103,28 +103,30 @@ async def read_identity() -> dict:
 
 async def retrieve_cnt(requested: list, identity: dict) -> list:
     """Retrieve CNT pairs"""
+
     logger.info("connecting to the database")
     conn = sqlite3.connect(CNT_DB_NAME)
     cur = conn.cursor()
-    logger.info("connecting to ogmios")
-    ogmios_context: OgmiosChainContext = OgmiosChainContext(
-        ws_url=OGMIOS_URL, network=network
-    )
-    logger.info("current epoch: %s", ogmios_context.epoch)
-    logger.info("latest block slot: %s", ogmios_context.last_block_slot)
-    # create the "database" dict to use as a parameter for functions
     database = {
         "conn": conn,
         "cur": cur,
     }
+
     res = []
+    logger.info("connecting to ogmios")
+    ogmios_ver = "v6"
+    ogmios_ws: websocket.WebSocket = websocket.create_connection(OGMIOS_URL)
+    ogmios_context = {
+        "ogmios_ws": ogmios_ws,
+        "ogmios_ver": ogmios_ver,
+        "logger": logger,
+    }
     for tokens_pair in requested:
         message, timestamp = await check_tokens_pair(
             database,
             ogmios_context,
             identity,
             tokens_pair,
-            logger,
         )
         message = {
             "message": message,
@@ -132,6 +134,7 @@ async def retrieve_cnt(requested: list, identity: dict) -> list:
             "validation_timestamp": timestamp,
         }
         res.append(message)
+
     return res
 
 
@@ -199,15 +202,14 @@ async def sign_message(data_to_send: dict):
     return sign_with_key(data_to_send, SIGNING_KEY)
 
 
-async def send_to_ws(websocket, data_to_send: dict):
+async def send_to_ws(validator_websocket, data_to_send: dict):
     """Send data to a websocket."""
-    print(data_to_send)
     id_ = data_to_send["message"]["identity"]["node_id"]
     timestamp = data_to_send["message"]["timestamp"]
     logger.info("sending message from id: %s with timestamp: %s", id_, timestamp)
     data_to_send = await sign_message(json.dumps(data_to_send))
-    await websocket.send(data_to_send)
-    msg = await websocket.recv()
+    await validator_websocket.send(data_to_send)
+    msg = await validator_websocket.recv()
     logger.info("websocket response: %s", msg)
 
 
@@ -259,10 +261,10 @@ async def fetch_and_send(identity: dict) -> None:
             ssl=ssl_context,
             user_agent_header=f"orcfax/collector-WebSocket ({get_version()})",
             timeout=120,
-        ) as websocket:
+        ) as validator_websocket:
             try:
                 async for data_to_send in data_cex:
-                    await send_to_ws(websocket, data_to_send)
+                    await send_to_ws(validator_websocket, data_to_send)
                     time.sleep(0.1)
                 if not CNT_ENABLED:
                     logging.info("cnt collection is not enabled")
@@ -270,7 +272,7 @@ async def fetch_and_send(identity: dict) -> None:
                 for data_to_send in data_dex:
                     if not data_to_send:
                         continue
-                    await send_to_ws(websocket, data_to_send)
+                    await send_to_ws(validator_websocket, data_to_send)
                     time.sleep(0.1)
             except websockets.exceptions.ConnectionClosedError as err:
                 logger.error("connection closed unexpectedly: %s", err)
