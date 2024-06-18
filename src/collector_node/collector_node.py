@@ -305,7 +305,7 @@ async def collector_main():
 
 def main():
     """Primary entry point of this script."""
-    asyncio.run(main())
+    asyncio.run(collector_main())
 
 
 if __name__ == "__main__":
