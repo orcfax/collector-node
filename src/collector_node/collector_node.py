@@ -35,40 +35,18 @@ CNT_ENABLED: Final[bool] = True
 
 # Import config.
 try:
-    from config import (
-        CNT_DB_NAME,
-        GOFER,
-        NODE_IDENTITY_LOC,
-        OGMIOS_URL,
-        OGMIOS_VERSION,
-        SIGNING_KEY,
-        VALIDATOR_URI,
-    )
+    import config
     from version import get_version
 except ModuleNotFoundError:
     try:
-        from collector_node.config import (
-            CNT_DB_NAME,
-            GOFER,
-            NODE_IDENTITY_LOC,
-            SIGNING_KEY,
-            VALIDATOR_URI,
-        )
+        from collector_node import config
         from collector_node.version import get_version
     except ModuleNotFoundError:
-        from src.collector_node.config import (
-            CNT_DB_NAME,
-            GOFER,
-            NODE_IDENTITY_LOC,
-            SIGNING_KEY,
-            VALIDATOR_URI,
-        )
+        from src.collector_node import config
         from src.collector_node.version import get_version
-
 
 try:
     # Import CNT related config.
-    from cnt_collector_node.config import OGMIOS_URL
     from cnt_collector_node.helper_functions import check_tokens_pair
     from cnt_collector_node.pairs import DEX_PAIRS
 except ModuleNotFoundError:
@@ -98,7 +76,7 @@ async def read_identity() -> dict:
     """
     identity = None
     try:
-        with open(NODE_IDENTITY_LOC, "r", encoding="utf-8") as identity_json:
+        with open(config.NODE_IDENTITY_LOC, "r", encoding="utf-8") as identity_json:
             identity = json.loads(identity_json.read())
     except FileNotFoundError as err:
         raise FileNotFoundError(f"Node identity not found: {err}") from err
@@ -113,17 +91,17 @@ async def retrieve_cnt(requested: list, identity: dict) -> list:
     """Retrieve CNT pairs"""
 
     logger.info("connecting to the database")
-    conn = sqlite3.connect(CNT_DB_NAME)
+    conn = sqlite3.connect(config.CNT_DB_NAME)
     cur = conn.cursor()
-    database = {
+    database_context = {
         "conn": conn,
         "cur": cur,
     }
 
     res = []
     logger.info("connecting to ogmios")
-    ogmios_ver = OGMIOS_VERSION
-    ogmios_ws: websocket.WebSocket = websocket.create_connection(OGMIOS_URL)
+    ogmios_ver = config.OGMIOS_VERSION
+    ogmios_ws: websocket.WebSocket = websocket.create_connection(config.OGMIOS_URL)
     ogmios_context = {
         "ogmios_ws": ogmios_ws,
         "ogmios_ver": ogmios_ver,
@@ -131,7 +109,7 @@ async def retrieve_cnt(requested: list, identity: dict) -> list:
     }
     for tokens_pair in requested:
         message, timestamp = await check_tokens_pair(
-            database,
+            database_context,
             ogmios_context,
             identity,
             tokens_pair,
@@ -141,6 +119,9 @@ async def retrieve_cnt(requested: list, identity: dict) -> list:
             "node_id": identity["node_id"],
             "validation_timestamp": timestamp,
         }
+        if not message:
+            logger.error("no message returned for: '%s'", tokens_pair["name"])
+            continue
         res.append(message)
 
     return res
@@ -164,7 +145,7 @@ async def fetch_cex_data(feed: str) -> dict:
     try:
         ps_out = subprocess.run(
             [
-                GOFER,
+                config.GOFER,
                 "data",
                 feed,
                 "-o",
@@ -207,7 +188,7 @@ def _return_ca_ssl_context():
 
 async def sign_message(data_to_send: dict):
     """Sign the node message before sending."""
-    return sign_with_key(data_to_send, SIGNING_KEY)
+    return sign_with_key(data_to_send, config.SIGNING_KEY)
 
 
 async def send_to_ws(validator_websocket, data_to_send: dict):
@@ -215,6 +196,7 @@ async def send_to_ws(validator_websocket, data_to_send: dict):
     id_ = data_to_send["message"]["identity"]["node_id"]
     timestamp = data_to_send["message"]["timestamp"]
     logger.info("sending message from id: %s with timestamp: %s", id_, timestamp)
+
     data_to_send = await sign_message(json.dumps(data_to_send))
     await validator_websocket.send(data_to_send)
     msg = await validator_websocket.recv()
@@ -248,7 +230,7 @@ async def fetch_and_send(identity: dict) -> None:
         "LQ-ADA",
         "MIN-ADA",
         "SHEN-ADA",
-        "SNEK_ADA",
+        "SNEK-ADA",
     ]
 
     data_cex = fetch_cex_feeds(cex_feeds)
@@ -257,7 +239,7 @@ async def fetch_and_send(identity: dict) -> None:
         data_dex = await fetch_dex_feeds(dex_feeds, identity)
 
     id_ = identity["node_id"]
-    validator_connection = f"{VALIDATOR_URI}/{id_}/"
+    validator_connection = f"{config.VALIDATOR_URI}/{id_}/"
 
     try:
         ssl_context = None

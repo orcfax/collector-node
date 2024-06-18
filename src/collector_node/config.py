@@ -84,6 +84,7 @@ except KeyError:
     logger.error(
         "oogmios websocket url needs to be set, e.g. `export OGMIOS_URL=ws://<ip-address>`"
     )
+    sys.exit(1)
 
 OGMIOS_VERSION: Final[str] = os.environ.get("OGMIOS_VERSION", "v6")
 logger.info("ogmios version: %s", OGMIOS_VERSION)
