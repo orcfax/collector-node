@@ -30,6 +30,7 @@ SIGNING_KEY = None
 
 # Load the validator websocket URI from the environment.
 load_dotenv("validator.env", override=True)
+
 try:
     VALIDATOR_URI: Final[str] = os.environ["ORCFAX_VALIDATOR"]
     logger.info("websocket: %s", VALIDATOR_URI)
@@ -76,3 +77,13 @@ except KeyError:
         "gofer location needs to be configured, e.g. `export GOFER=/path/to/gofer`"
     )
     sys.exit(1)
+try:
+    OGMIOS_URL: Final[str] = os.environ["OGMIOS_URL"]
+    logger.info("ogmios websocket: %s", OGMIOS_URL)
+except KeyError:
+    logger.error(
+        "oogmios websocket url needs to be set, e.g. `export OGMIOS_URL=ws://<ip-address>`"
+    )
+
+OGMIOS_VERSION: Final[str] = os.environ.get("OGMIOS_VERSION", "v6")
+logger.info("ogmios version: %s", OGMIOS_VERSION)

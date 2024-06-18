@@ -35,7 +35,15 @@ CNT_ENABLED: Final[bool] = True
 
 # Import config.
 try:
-    from config import CNT_DB_NAME, GOFER, NODE_IDENTITY_LOC, SIGNING_KEY, VALIDATOR_URI
+    from config import (
+        CNT_DB_NAME,
+        GOFER,
+        NODE_IDENTITY_LOC,
+        OGMIOS_URL,
+        OGMIOS_VERSION,
+        SIGNING_KEY,
+        VALIDATOR_URI,
+    )
     from version import get_version
 except ModuleNotFoundError:
     try:
@@ -114,7 +122,7 @@ async def retrieve_cnt(requested: list, identity: dict) -> list:
 
     res = []
     logger.info("connecting to ogmios")
-    ogmios_ver = "v6"
+    ogmios_ver = OGMIOS_VERSION
     ogmios_ws: websocket.WebSocket = websocket.create_connection(OGMIOS_URL)
     ogmios_context = {
         "ogmios_ws": ogmios_ws,

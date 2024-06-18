@@ -84,9 +84,17 @@ crontab -e
 
 <!-- markdownlint-disable -->
 
-```text
-ORCFAX_VALIDATOR=wss://<node-ws-endpoint>
-*/1 * * * * /home/orcfax/collector/venv/bin/python /home/orcfax/collector/collector.py 2>&1 | logger -t orcfax_collector
+```ini
+# Required.
+ORCFAX_VALIDATOR=
+NODE_IDENTITY_LOC=
+NODE_SIGNING_KEY=
+CNT_DB_NAME=
+OGMIOS_URL=
+# Optional.
+OGMIOS_VERSION=v6
+
+* * * * * /home/orcfax/collector/venv/bin/python /home/orcfax/collector/collector.py 2>&1 | logger -t orcfax_collector
 ```
 
 <!-- markdownlint-enable -->
