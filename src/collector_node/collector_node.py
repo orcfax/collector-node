@@ -195,8 +195,10 @@ async def send_to_ws(validator_websocket, data_to_send: dict):
     """Send data to a websocket."""
     id_ = data_to_send["message"]["identity"]["node_id"]
     timestamp = data_to_send["message"]["timestamp"]
-    logger.info("sending message from id: %s with timestamp: %s", id_, timestamp)
-
+    feed = data_to_send["message"]["feed"]
+    logger.info(
+        "sending message '%s' from id: %s with timestamp: %s", feed, id_, timestamp
+    )
     data_to_send = await sign_message(json.dumps(data_to_send))
     await validator_websocket.send(data_to_send)
     msg = await validator_websocket.recv()
