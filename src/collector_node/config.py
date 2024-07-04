@@ -59,9 +59,9 @@ except KeyError:
     sys.exit(1)
 try:
     CNT_DB_NAME: Final[str] = os.environ["CNT_DB_NAME"]
+    logger.info("db loc: %s", CNT_DB_NAME)
     if not os.path.exists(CNT_DB_NAME):
         raise RuntimeError(f"database file does not exist: {CNT_DB_NAME}")
-    logger.info("db loc: %s", CNT_DB_NAME)
 except KeyError:
     logger.error(
         "cnt index database loc needs setting, e.g. `export CNT_DB_NAME=/path/to/cnt/database.db`"
@@ -69,9 +69,9 @@ except KeyError:
     sys.exit(1)
 try:
     GOFER: Final[str] = os.environ["GOFER"]
+    logger.info("gofer loc: %s", GOFER)
     if not os.path.exists(GOFER):
         raise RuntimeError(f"gofer cannot be found: {GOFER}")
-    logger.info("gofer loc: %s", GOFER)
 except KeyError:
     logger.error(
         "gofer location needs to be configured, e.g. `export GOFER=/path/to/gofer`"
