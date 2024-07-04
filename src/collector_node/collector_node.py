@@ -17,6 +17,7 @@ To monitor logging:
 import asyncio
 import json
 import logging
+import os
 import random
 import sqlite3
 import ssl
@@ -36,13 +37,14 @@ CNT_ENABLED: Final[bool] = True
 # Import config.
 try:
     import config
+    import flock
     from version import get_version
 except ModuleNotFoundError:
     try:
-        from collector_node import config
+        from collector_node import config, flock
         from collector_node.version import get_version
     except ModuleNotFoundError:
-        from src.collector_node import config
+        from src.collector_node import config, flock
         from src.collector_node.version import get_version
 
 try:
@@ -297,7 +299,22 @@ async def collector_main():
 
 def main():
     """Primary entry point of this script."""
-    asyncio.run(collector_main())
+    pid = os.getpid()
+    start_time = time.time()
+    try:
+        with flock.FlockContext():
+            try:
+                asyncio.run(collector_main())
+            # pylint: disable=W0718   # global catch, if this doesn't run, nothing does.
+            except Exception as err:
+                logger.error("collector node runner not running: %s", err)
+    except BlockingIOError as err:
+        logger("collector node runner already in use: %s", err)
+        sys.exit(1)
+    end_time = time.time() - start_time
+    logger.info(
+        "collector node runner (%s) completed after: '%s' seconds", pid, end_time
+    )
 
 
 if __name__ == "__main__":
