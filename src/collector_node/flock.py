@@ -1,4 +1,4 @@
-"""Flock management.
+"""Flock (file lock) management.
 
 via. https://seds.nl/notes/locking-python-scripts-with-flock/
 """
