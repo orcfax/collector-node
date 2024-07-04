@@ -301,6 +301,7 @@ def main():
     """Primary entry point of this script."""
     pid = os.getpid()
     start_time = time.time()
+    logger.info("----- node runner (%s) -----", pid)
     try:
         with flock.FlockContext():
             try:
@@ -309,11 +310,11 @@ def main():
             except Exception as err:
                 logger.error("collector node runner not running: %s", err)
     except BlockingIOError as err:
-        logger("collector node runner already in use: %s", err)
+        logger.info("collector node runner already in use: %s", err)
         sys.exit(1)
     end_time = time.time() - start_time
     logger.info(
-        "collector node runner (%s) completed after: '%s' seconds", pid, end_time
+        "----- node runner (%s) completed after: '%s' seconds -----", pid, end_time
     )
 
 
