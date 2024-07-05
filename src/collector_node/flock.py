@@ -10,16 +10,17 @@ import io
 import logging
 import os
 import pathlib
+import tempfile
 
 logger = logging.getLogger(__name__)
 
 
 class FlockContext:
-    lock_name: str = ""
-    lock_file: io.TextIOWrapper = None
+    lock_name: str = ""  # lock filename.
+    lock_file: io.TextIOWrapper = None  # lock file handle.
 
-    def __init__(self):
-        pass
+    def __init__(self, flock_name_base: str = ""):
+        self.flock_name_base = flock_name_base
 
     def __enter__(self):
         self.flock_acquire()
@@ -33,8 +34,10 @@ class FlockContext:
 
         will raise `BlockingIOError` if the lock has already been acquired.
         """
+        if not self.flock_name_base:
+            self.flock_name_base = "flock"
         self.lock_name = pathlib.Path().joinpath(
-            f"/tmp/{pathlib.Path(__file__).name.strip('.py')}.flock"
+            tempfile.gettempdir(), f"{self.flock_name_base}.flock"
         )
         logger.info("acquiring collector node lock file: '%s'", self.lock_name)
         lock_file = open(self.lock_name, "wb")
@@ -43,6 +46,7 @@ class FlockContext:
 
     def flock_release(self):
         """Release the flock lockfile."""
-        logger.info("releasing: '%s'", self.lock_name)
+        logger.info("releasing and unlinking: '%s'", self.lock_name)
         fcntl.flock(self.lock_file, fcntl.LOCK_UN)
         os.close(self.lock_file.fileno())
+        os.unlink(self.lock_name)

@@ -303,7 +303,7 @@ def main():
     start_time = time.time()
     logger.info("----- node runner (%s) -----", pid)
     try:
-        with flock.FlockContext():
+        with flock.FlockContext(flock_name_base="cnode_runner"):
             try:
                 asyncio.run(collector_main())
             # pylint: disable=W0718   # global catch, if this doesn't run, nothing does.
