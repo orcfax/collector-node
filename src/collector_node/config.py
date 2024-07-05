@@ -29,7 +29,7 @@ logging.Formatter.converter = time.gmtime
 SIGNING_KEY = None
 
 # Load the validator websocket URI from the environment.
-load_dotenv("validator.env", override=True)
+load_dotenv("validator.env", override=False)
 
 try:
     VALIDATOR_URI: Final[str] = os.environ["ORCFAX_VALIDATOR"]
