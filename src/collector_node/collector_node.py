@@ -203,8 +203,17 @@ async def send_to_ws(validator_websocket, data_to_send: dict):
     )
     data_to_send = await sign_message(json.dumps(data_to_send))
     await validator_websocket.send(data_to_send)
-    msg = await validator_websocket.recv()
-    logger.info("websocket response: %s", msg)
+    try:
+        # `wait_for` exits early if necessary to avoid the validator
+        # swallowing this message without return so we can continue onto the next.
+        msg = await asyncio.wait_for(validator_websocket.recv(), 10)
+        if "ERROR" in msg:
+            logger.error("websocket response: %s (%s)", msg, feed)
+            return
+        logger.error("websocket response: %s (%s)", msg, feed)
+    except asyncio.exceptions.TimeoutError:
+        logger.error("websocket wait_for resp timeout for feed '%s'", feed)
+    return
 
 
 async def fetch_and_send(identity: dict) -> None:
