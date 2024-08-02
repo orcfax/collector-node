@@ -36,3 +36,5 @@ ignore-paths=
 disable =
     C0301, 	# line-length too long, see Black documented recommendations.
     C0115,  # No docstring for Class.
+    # Ignore for GitHub actions. Pylint is behaving differently.
+    R0801,  # Similar lines of code across multiple files.
