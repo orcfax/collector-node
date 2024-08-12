@@ -5,7 +5,7 @@ dynamic = ["version", "dependencies"]
 description = "Orcfax collector node"
 readme = "README.md"
 
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
 authors = [
   {name = "R. Spencer", email = "ross@orcfax.io" },
