@@ -20,7 +20,7 @@ def get_version():
     """
     __version__ = "1.0.0-dev"
     try:
-        __version__ = version("validator-node-api")
+        __version__ = version("collector-node")
     except PackageNotFoundError:
         # package is not installed
         pass
