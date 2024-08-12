@@ -142,3 +142,4 @@ dmypy.json
 *.bk
 cnt/*
 tar/
+cer-feeds.json
