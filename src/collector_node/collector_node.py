@@ -78,30 +78,30 @@ async def read_identity() -> dict:
     Return a simplified version of the identity file and the location
     of the validator websocket.
     """
+    logger.debug("reading identity: %s", config.NODE_IDENTITY_LOC)
     identity = None
     try:
         with open(config.NODE_IDENTITY_LOC, "r", encoding="utf-8") as identity_json:
             identity = json.loads(identity_json.read())
     except FileNotFoundError as err:
-        raise FileNotFoundError(f"Node identity not found: {err}") from err
+        raise FileNotFoundError(f"node identity not found: {err}") from err
     except json.decoder.JSONDecodeError as err:
         raise RuntimeWarning(
-            f"Problem parsing JSON consider re-running node-init: {err}"
+            f"problem parsing JSON consider re-running node-init: {err}"
         ) from err
+    logger.debug("node identity successfully parsed")
     return identity
 
 
 async def retrieve_cnt(requested: list, identity: dict) -> list:
     """Retrieve CNT pairs"""
-
-    logger.info("connecting to the database")
+    logger.info("connecting to the cnt database")
     conn = sqlite3.connect(config.CNT_DB_NAME)
     cur = conn.cursor()
     database_context = {
         "conn": conn,
         "cur": cur,
     }
-
     res = []
     logger.info("connecting to ogmios")
     ogmios_ver = config.OGMIOS_VERSION
@@ -127,12 +127,12 @@ async def retrieve_cnt(requested: list, identity: dict) -> list:
             logger.error("no message returned for: '%s'", tokens_pair["name"])
             continue
         res.append(message)
-
     return res
 
 
 async def fetch_dex_feeds(feeds: list, identity: dict) -> list:
     """Retrieve dex data from the CNT indexer."""
+    logger.debug("retrieving dex pairs")
     pairs = []
     for dex_pair in DEX_PAIRS:
         if dex_pair["name"] not in feeds:
@@ -146,6 +146,7 @@ async def fetch_dex_feeds(feeds: list, identity: dict) -> list:
 
 async def fetch_cex_data(feed: str) -> dict:
     """Fetch data from the collector app using the subprocess command."""
+    logger.debug("fetching cex feeds using goder: %s ('%s')", config.GOFER, feed)
     try:
         ps_out = subprocess.run(
             [
@@ -174,12 +175,14 @@ async def fetch_cex_feeds(feeds: list[str]) -> list:
     """Fetch results from the collector software and send them to the
     validator.
     """
+    logger.debug("fetching cex feeds")
     for feed in random.sample(feeds, len(feeds)):
         logger.info("feed: %s", feed)
         res = await fetch_cex_data(feed=feed)
         if not res:
             logger.error("cannot retrieve data for: '%s'", feed)
             continue
+        logger.debug("collecting cex data, yielding")
         yield res
 
 
@@ -187,16 +190,19 @@ def _return_ca_ssl_context():
     """Return an ssl context for testing a connection to a validator
     signed by a certificate authority.
     """
+    logger.debug("retrieving ssl context")
     return ssl.create_default_context(cafile=certifi.where())
 
 
 async def sign_message(data_to_send: dict):
     """Sign the node message before sending."""
+    logger.debug("signing collected data")
     return sign_with_key(data_to_send, config.SIGNING_KEY)
 
 
 async def send_to_ws(validator_websocket, data_to_send: dict):
     """Send data to a websocket."""
+    logger.debug("attempting to send to websocket")
     id_ = data_to_send["message"]["identity"]["node_id"]
     timestamp = data_to_send["message"]["timestamp"]
     feed = data_to_send["message"]["feed"]
@@ -221,6 +227,8 @@ async def send_to_ws(validator_websocket, data_to_send: dict):
 async def fetch_and_send(feeds: list, identity: dict) -> None:
     """Fetch feed data and send it to a validator websocket."""
 
+    logger.debug("in fetch and send for all feeds")
+
     cex_feeds = []
     dex_feeds = []
 
@@ -231,9 +239,13 @@ async def fetch_and_send(feeds: list, identity: dict) -> None:
         if feed.source == "dex":
             dex_feeds.append(feed.label)
 
+    logger.debug("len cex feeds: '%s'", len(cex_feeds))
+    logger.debug("len dex feeds: '%s'", len(dex_feeds))
+
     data_cex = fetch_cex_feeds(cex_feeds)
     data_dex = []
     if CNT_ENABLED:
+        logger.debug("cnt collection is not enabled")
         data_dex = await fetch_dex_feeds(dex_feeds, identity)
 
     id_ = identity["node_id"]
@@ -242,6 +254,7 @@ async def fetch_and_send(feeds: list, identity: dict) -> None:
     try:
         ssl_context = None
         if validator_connection.startswith("wss://"):
+            logger.debug("ssl enabled, retrieving ssl context")
             ssl_context = _return_ca_ssl_context()
         logger.info("validator connection: %s", validator_connection)
         async with websockets.connect(
@@ -251,17 +264,24 @@ async def fetch_and_send(feeds: list, identity: dict) -> None:
             timeout=120,
         ) as validator_websocket:
             try:
+                sleep_time = 0.1
                 async for data_to_send in data_cex:
+                    logger.debug(
+                        "sending to web-socket, then sleeping for '%ss'", sleep_time
+                    )
                     await send_to_ws(validator_websocket, data_to_send)
-                    time.sleep(0.1)
+                    time.sleep(sleep_time)
                 if not CNT_ENABLED:
-                    logging.info("cnt collection is not enabled")
+                    logger.debug(
+                        "cnt collection is not enabled nothing to send to web-socket"
+                    )
                     return
                 for data_to_send in data_dex:
+                    logger.debug("sending dex collection data")
                     if not data_to_send:
                         continue
                     await send_to_ws(validator_websocket, data_to_send)
-                    time.sleep(0.1)
+                    time.sleep(sleep_time)
             except websockets.exceptions.ConnectionClosedError as err:
                 logger.error("connection closed unexpectedly: %s", err)
     except websockets.exceptions.InvalidStatusCode as err:
@@ -285,9 +305,9 @@ async def collector_main(feeds_file: str):
 
     # Stagger the collection of the data in this script so that the
     # validator node isn't flooded each round.
-    logging.info("collector-node version: '%s'", get_version())
+    logger.info("collector-node version: '%s'", get_version())
     run_interval = random.randint(1, 15)
-    logging.info("run interval: %ds", run_interval)
+    logger.info("run interval: %ds", run_interval)
     await asyncio.sleep(run_interval)
     identity = await read_identity()
     feeds = await feed_helper.read_feeds_file(feeds_file=feeds_file)
@@ -306,7 +326,16 @@ def main():
         help="feed data describing feeds being monitored (CER-feeds (JSON))",
         required=True,
     )
+    parser.add_argument(
+        "--debug",
+        help="enable debug logging (verbose)",
+        required=False,
+        action="store_true",
+    )
     args = parser.parse_args()
+    logging.getLogger(__name__).setLevel(
+        logging.DEBUG if args.debug else logging.WARNING
+    )
     pid = os.getpid()
     start_time = time.time()
     logger.info("----- node runner (%s) -----", pid)
