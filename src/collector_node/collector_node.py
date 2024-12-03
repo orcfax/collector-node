@@ -25,6 +25,7 @@ import ssl
 import subprocess
 import sys
 import time
+import traceback
 from typing import Final
 
 import certifi
@@ -345,6 +346,8 @@ def main():
                 asyncio.run(collector_main(feeds_file=args.feeds))
             # pylint: disable=W0718   # global catch, if this doesn't run, nothing does.
             except Exception as err:
+                logger.debug("error: %s", repr(err))
+                logger.debug("traceback: %s", traceback.print_exc())
                 logger.error(
                     "collector node runner not running: %s",
                     f"{err}".replace("\n", "").strip(),
