@@ -212,9 +212,9 @@ async def send_to_ws(validator_websocket, data_to_send: dict):
         if "ERROR" in msg:
             logger.error("websocket response: %s (%s)", msg, feed)
             return
-        logger.error("websocket response: %s (%s)", msg, feed)
-    except asyncio.exceptions.TimeoutError:
-        logger.error("websocket wait_for resp timeout for feed '%s'", feed)
+        logger.info("websocket response: %s (%s)", msg, feed)
+    except asyncio.exceptions.TimeoutError as err:
+        logger.error("websocket wait_for resp timeout for feed '%s' ('%s')", feed, err)
     return
 
 
@@ -286,7 +286,9 @@ async def collector_main(feeds_file: str):
     # Stagger the collection of the data in this script so that the
     # validator node isn't flooded each round.
     logging.info("collector-node version: '%s'", get_version())
-    await asyncio.sleep(random.randint(1, 15))
+    run_interval = random.randint(1, 15)
+    logging.info("run interval: %ds", run_interval)
+    await asyncio.sleep(run_interval)
     identity = await read_identity()
     feeds = await feed_helper.read_feeds_file(feeds_file=feeds_file)
     await fetch_and_send(feeds=feeds, identity=identity)
@@ -314,7 +316,10 @@ def main():
                 asyncio.run(collector_main(feeds_file=args.feeds))
             # pylint: disable=W0718   # global catch, if this doesn't run, nothing does.
             except Exception as err:
-                logger.error("collector node runner not running: %s", err)
+                logger.error(
+                    "collector node runner not running: %s",
+                    f"{err}".replace("\n", "").strip(),
+                )
     except BlockingIOError as err:
         logger.info("collector node runner already in use: %s", err)
         sys.exit(1)
