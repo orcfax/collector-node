@@ -107,15 +107,21 @@ async def retrieve_cnt(requested: list, identity: dict) -> list:
     logger.info("connecting to ogmios")
     ogmios_ver = config.OGMIOS_VERSION
     ogmios_ws: websocket.WebSocket = websocket.create_connection(config.OGMIOS_URL)
-    ogmios_context = {
+    use_kupo = False
+    if config.KUPO_URL:
+        use_kupo = True
+    kupo_url = config.KUPO_URL
+    context = {
         "ogmios_ws": ogmios_ws,
         "ogmios_ver": ogmios_ver,
         "logger": logger,
+        "use_kupo": use_kupo,
+        "kupo_url": kupo_url,
     }
     for tokens_pair in requested:
         message, timestamp = await check_tokens_pair(
             database_context,
-            ogmios_context,
+            context,
             identity,
             tokens_pair,
         )
@@ -225,6 +231,16 @@ async def send_to_ws(validator_websocket, data_to_send: dict):
     return
 
 
+async def collect_dex(dex_feeds: list, identity: dict) -> list:
+    """Collect dex data and provide a way to exit gracefully if the
+    configuration is incorrect.
+    """
+    data_dex = []
+    if CNT_ENABLED:
+        data_dex = await fetch_dex_feeds(dex_feeds, identity)
+    return data_dex
+
+
 async def fetch_and_send(feeds: list, identity: dict) -> None:
     """Fetch feed data and send it to a validator websocket."""
 
@@ -244,10 +260,7 @@ async def fetch_and_send(feeds: list, identity: dict) -> None:
     logger.debug("len dex feeds: '%s'", len(dex_feeds))
 
     data_cex = fetch_cex_feeds(cex_feeds)
-    data_dex = []
-    if CNT_ENABLED:
-        logger.debug("cnt collection is not enabled")
-        data_dex = await fetch_dex_feeds(dex_feeds, identity)
+    data_dex = await collect_dex(dex_feeds, identity)
 
     id_ = identity["node_id"]
     validator_connection = f"{config.VALIDATOR_URI}/{id_}/"

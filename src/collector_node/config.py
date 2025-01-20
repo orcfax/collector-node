@@ -77,14 +77,32 @@ except KeyError:
         "gofer location needs to be configured, e.g. `export GOFER=/path/to/gofer`"
     )
     sys.exit(1)
+
+# CNT configuration.
+#
+# Within the app CNT_ENABLED controls whether we go to the dexes. Ogmios
+# needs configuring at a minimum. Kupo can be set to improve performance
+# on database startup.
+
+OGMIOS_URL = None
 try:
-    OGMIOS_URL: Final[str] = os.environ["OGMIOS_URL"]
+    OGMIOS_URL = os.environ["OGMIOS_URL"]
     logger.info("ogmios websocket: %s", OGMIOS_URL)
 except KeyError:
     logger.error(
-        "oogmios websocket url needs to be set, e.g. `export OGMIOS_URL=ws://<ip-address>`"
+        "ogmios websocket url needs to be set, e.g. `export OGMIOS_URL=ws://<ip-address>`"
     )
     sys.exit(1)
+
+KUPO_URL = None
+try:
+    KUPO_URL = os.environ["KUPO_URL"]
+    logger.info("kupo url: %s", KUPO_URL)
+except KeyError:
+    KUPO_URL = None
+    logger.info(
+        "kupo url can optionally be set, e.g. `export KUPO_URL=http://<ip-address>`"
+    )
 
 OGMIOS_VERSION: Final[str] = os.environ.get("OGMIOS_VERSION", "v6")
 logger.info("ogmios version: %s", OGMIOS_VERSION)
