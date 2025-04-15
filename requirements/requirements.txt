@@ -1,5 +1,6 @@
 # requirements for the production project.
 
+aiohttp==3.11.16
 certifi==2024.7.4
 pydantic==2.8.2
 python-dotenv==1.0.1

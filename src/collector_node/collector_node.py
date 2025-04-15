@@ -13,6 +13,7 @@ To monitor logging:
     ```
 
 """
+# pylint: disable=C0412
 
 import argparse
 import asyncio
@@ -28,9 +29,10 @@ import time
 import traceback
 from typing import Final
 
+import aiohttp
+import aiohttp.client_exceptions
 import certifi
 import websocket
-import websockets
 from simple_sign.sign import sign_with_key
 
 CNT_ENABLED: Final[bool] = True
@@ -42,20 +44,25 @@ try:
     import feed_helper
     import flock
     from version import get_version
+
+    from cnt_collector_node.helper_functions import check_tokens_pair
+    from cnt_collector_node.pairs import DEX_PAIRS
 except ModuleNotFoundError:
     try:
+        from cnt_collector_node.helper_functions import check_tokens_pair
+        from cnt_collector_node.pairs import DEX_PAIRS
         from collector_node import config, feed_helper, flock
         from collector_node.version import get_version
     except ModuleNotFoundError:
         from src.collector_node import config, feed_helper, flock
         from src.collector_node.version import get_version
 
-try:
-    # Import CNT related config.
-    from cnt_collector_node.helper_functions import check_tokens_pair
-    from cnt_collector_node.pairs import DEX_PAIRS
-except ModuleNotFoundError:
-    CNT_ENABLED = False
+        try:
+            from src.cnt_collector_node.helper_functions import check_tokens_pair
+            from src.cnt_collector_node.pairs import DEX_PAIRS
+        except ModuleNotFoundError:
+            CNT_ENABLED = False
+
 
 sys.dont_write_bytecode = True
 
@@ -105,7 +112,6 @@ async def retrieve_cnt(requested: list, identity: dict) -> list:
     }
     res = []
     logger.info("connecting to ogmios")
-    ogmios_ver = config.OGMIOS_VERSION
     ogmios_ws: websocket.WebSocket = websocket.create_connection(config.OGMIOS_URL)
     use_kupo = False
     if config.KUPO_URL:
@@ -113,7 +119,6 @@ async def retrieve_cnt(requested: list, identity: dict) -> list:
     kupo_url = config.KUPO_URL
     context = {
         "ogmios_ws": ogmios_ws,
-        "ogmios_ver": ogmios_ver,
         "logger": logger,
         "use_kupo": use_kupo,
         "kupo_url": kupo_url,
@@ -217,11 +222,11 @@ async def send_to_ws(validator_websocket, data_to_send: dict):
         "sending message '%s' from id: %s with timestamp: %s", feed, id_, timestamp
     )
     data_to_send = await sign_message(json.dumps(data_to_send))
-    await validator_websocket.send(data_to_send)
+    await validator_websocket.send_str(data_to_send)
     try:
         # `wait_for` exits early if necessary to avoid the validator
         # swallowing this message without return so we can continue onto the next.
-        msg = await asyncio.wait_for(validator_websocket.recv(), 10)
+        msg = await asyncio.wait_for(validator_websocket.receive(), 10)
         if "ERROR" in msg:
             logger.error("websocket response: %s (%s)", msg, feed)
             return
@@ -239,6 +244,54 @@ async def collect_dex(dex_feeds: list, identity: dict) -> list:
     if CNT_ENABLED:
         data_dex = await fetch_dex_feeds(dex_feeds, identity)
     return data_dex
+
+
+async def send_data_to_validator(
+    session: aiohttp.ClientSession,
+    validator_uri: str,
+    data_cex: dict,
+    data_dex: dict,
+):
+    """Send data to a validator websocket"""
+    ssl_context = None
+    if validator_uri.startswith("wss://"):
+        logger.debug("ssl enabled, retrieving ssl context")
+        ssl_context = _return_ca_ssl_context()
+    logger.info("validator connection: %s", validator_uri)
+    try:
+        async with session.ws_connect(
+            validator_uri,
+            ssl=ssl_context,
+            headers={"User-Agent": f"orcfax/collector-WebSocket ({get_version()})"},
+            timeout=120,
+        ) as validator_websocket:
+            try:
+                sleep_time = 0.1
+                async for data_to_send in data_cex:
+                    logger.debug(
+                        "sending to web-socket, then sleeping for '%ss'", sleep_time
+                    )
+                    await send_to_ws(validator_websocket, data_to_send)
+                    time.sleep(sleep_time)
+                if not CNT_ENABLED:
+                    logger.debug(
+                        "cnt collection is not enabled nothing to send to web-socket"
+                    )
+                    return
+                for data_to_send in data_dex:
+                    logger.debug("sending dex collection data")
+                    if not data_to_send:
+                        continue
+                    await send_to_ws(validator_websocket, data_to_send)
+                    time.sleep(sleep_time)
+            except aiohttp.client_exceptions.ServerDisconnectedError as err:
+                logger.error("connection closed unexpectedly: %s", err)
+            except aiohttp.client_exceptions.ConnectionTimeoutError as err:
+                logger.error("connection timeout: %s", err)
+    except aiohttp.client_exceptions.ClientConnectorCertificateError as err:
+        logger.error("ssl verification error from validator: %s", err)
+    except aiohttp.client_exceptions.WSServerHandshakeError as err:
+        logger.error("unexpected response status code from validator: %s", err)
 
 
 async def fetch_and_send(feeds: list, identity: dict) -> None:
@@ -263,47 +316,18 @@ async def fetch_and_send(feeds: list, identity: dict) -> None:
     data_dex = await collect_dex(dex_feeds, identity)
 
     id_ = identity["node_id"]
-    validator_connection = f"{config.VALIDATOR_URI}/{id_}/"
-
-    try:
-        ssl_context = None
-        if validator_connection.startswith("wss://"):
-            logger.debug("ssl enabled, retrieving ssl context")
-            ssl_context = _return_ca_ssl_context()
-        logger.info("validator connection: %s", validator_connection)
-        async with websockets.connect(
-            validator_connection,
-            ssl=ssl_context,
-            user_agent_header=f"orcfax/collector-WebSocket ({get_version()})",
-            timeout=120,
-        ) as validator_websocket:
-            try:
-                sleep_time = 0.1
-                async for data_to_send in data_cex:
-                    logger.debug(
-                        "sending to web-socket, then sleeping for '%ss'", sleep_time
-                    )
-                    await send_to_ws(validator_websocket, data_to_send)
-                    time.sleep(sleep_time)
-                if not CNT_ENABLED:
-                    logger.debug(
-                        "cnt collection is not enabled nothing to send to web-socket"
-                    )
-                    return
-                for data_to_send in data_dex:
-                    logger.debug("sending dex collection data")
-                    if not data_to_send:
-                        continue
-                    await send_to_ws(validator_websocket, data_to_send)
-                    time.sleep(sleep_time)
-            except websockets.exceptions.ConnectionClosedError as err:
-                logger.error("connection closed unexpectedly: %s", err)
-    except websockets.exceptions.InvalidStatusCode as err:
-        logger.error(
-            "unexpected response status code from validator: %s (url: %s)",
-            err,
-            validator_connection,
-        )
+    validator_uris = []
+    if isinstance(config.VALIDATOR_URI, str):
+        validator_uris.append(f"{config.VALIDATOR_URI}/{id_}/")
+    else:
+        for uri in config.VALIDATOR_URI:
+            validator_uris.append(f"{uri}/{id_}/")
+    async with aiohttp.ClientSession() as session:
+        tasks = [
+            send_data_to_validator(session, validator_uri, data_cex, data_dex)
+            for validator_uri in validator_uris
+        ]
+        await asyncio.gather(*tasks)
 
 
 async def collector_main(feeds_file: str):
@@ -320,7 +344,7 @@ async def collector_main(feeds_file: str):
     # Stagger the collection of the data in this script so that the
     # validator node isn't flooded each round.
     logger.info("collector-node version: '%s'", get_version())
-    run_interval = random.randint(1, 15)
+    run_interval = random.randint(1, config.RANDOM_WAIT_MAX)
     logger.info("run interval: %ds", run_interval)
     await asyncio.sleep(run_interval)
     identity = await read_identity()

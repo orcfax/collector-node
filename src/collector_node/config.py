@@ -5,6 +5,7 @@ are used here to check and then fail if a key component isn't available
 to the script.
 """
 
+import json
 import logging
 import os
 import sys
@@ -31,8 +32,14 @@ SIGNING_KEY = None
 # Load the validator websocket URI from the environment.
 load_dotenv("validator.env", override=False)
 
+RANDOM_WAIT_MAX: Final[int] = int(os.getenv("RANDOM_WAIT_MAX", "15"))
+
 try:
-    VALIDATOR_URI: Final[str] = os.environ["ORCFAX_VALIDATOR"]
+    validator_uri = os.environ["ORCFAX_VALIDATOR"]
+    if "[" in validator_uri:
+        VALIDATOR_URI: Final[list] = json.loads(validator_uri)
+    else:
+        VALIDATOR_URI: Final[str] = validator_uri
     logger.info("websocket: %s", VALIDATOR_URI)
 except KeyError:
     logger.error(
@@ -103,6 +110,3 @@ except KeyError:
     logger.info(
         "kupo url can optionally be set, e.g. `export KUPO_URL=http://<ip-address>`"
     )
-
-OGMIOS_VERSION: Final[str] = os.environ.get("OGMIOS_VERSION", "v6")
-logger.info("ogmios version: %s", OGMIOS_VERSION)
