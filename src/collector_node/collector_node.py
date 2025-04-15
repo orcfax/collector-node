@@ -27,7 +27,7 @@ import subprocess
 import sys
 import time
 import traceback
-from typing import Final
+from typing import AsyncGenerator, Final
 
 import aiohttp
 import aiohttp.client_exceptions
@@ -183,7 +183,7 @@ async def fetch_cex_data(feed: str) -> dict:
     return stdout.get(feed)
 
 
-async def fetch_cex_feeds(feeds: list[str]) -> list:
+async def fetch_cex_feeds(feeds: list[str]) -> AsyncGenerator:
     """Fetch results from the collector software and send them to the
     validator.
     """
