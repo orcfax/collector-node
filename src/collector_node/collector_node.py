@@ -173,6 +173,7 @@ async def fetch_cex_data(feed: str) -> dict:
         )
         stdout = json.loads(ps_out.stdout.decode())
         stderr = ps_out.stderr.decode()
+        logger.debug("stderr: %s", stderr)
     except subprocess.CalledProcessError as err:
         logger.error("call failed with: %s", err)
         return {}
@@ -292,6 +293,9 @@ async def send_data_to_validator(
         logger.error("ssl verification error from validator: %s", err)
     except aiohttp.client_exceptions.WSServerHandshakeError as err:
         logger.error("unexpected response status code from validator: %s", err)
+    except aiohttp.client_exceptions.ClientConnectorError as err:
+        logger.error("problem connecting to the validator: %s", err)
+
 
 
 async def fetch_and_send(feeds: list, identity: dict) -> None:
