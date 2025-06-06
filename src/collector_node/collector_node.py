@@ -43,14 +43,14 @@ try:
     import config
     import feed_helper
     import flock
-    from version import get_version
-
     from cnt_collector_node.helper_functions import check_tokens_pair
     from cnt_collector_node.pairs import DEX_PAIRS
+    from version import get_version
 except ModuleNotFoundError:
     try:
         from cnt_collector_node.helper_functions import check_tokens_pair
         from cnt_collector_node.pairs import DEX_PAIRS
+
         from collector_node import config, feed_helper, flock
         from collector_node.version import get_version
     except ModuleNotFoundError:
@@ -295,7 +295,6 @@ async def send_data_to_validator(
         logger.error("unexpected response status code from validator: %s", err)
     except aiohttp.client_exceptions.ClientConnectorError as err:
         logger.error("problem connecting to the validator: %s", err)
-
 
 
 async def fetch_and_send(feeds: list, identity: dict) -> None:
