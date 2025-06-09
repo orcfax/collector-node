@@ -43,25 +43,22 @@ try:
     import config
     import feed_helper
     import flock
-    from cnt_collector_node.helper_functions import check_tokens_pair
-    from cnt_collector_node.pairs import DEX_PAIRS
     from version import get_version
 except ModuleNotFoundError:
     try:
-        from cnt_collector_node.helper_functions import check_tokens_pair
-        from cnt_collector_node.pairs import DEX_PAIRS
-
         from collector_node import config, feed_helper, flock
         from collector_node.version import get_version
     except ModuleNotFoundError:
         from src.collector_node import config, feed_helper, flock
         from src.collector_node.version import get_version
 
-        try:
-            from src.cnt_collector_node.helper_functions import check_tokens_pair
-            from src.cnt_collector_node.pairs import DEX_PAIRS
-        except ModuleNotFoundError:
-            CNT_ENABLED = False
+try:
+    # Import CNT related config. IMPORTANT: keep this separate for ITN
+    # testing or any config not making use of DEX config.
+    from src.cnt_collector_node.helper_functions import check_tokens_pair
+    from src.cnt_collector_node.pairs import DEX_PAIRS
+except ModuleNotFoundError:
+    CNT_ENABLED = False
 
 
 sys.dont_write_bytecode = True
