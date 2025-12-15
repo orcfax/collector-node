@@ -55,8 +55,11 @@ except ModuleNotFoundError:
 
 try:
     # Import CNT related config.
-    from cnt_collector_node.helper_functions import check_tokens_pair
+    import cnt_collector_node.database_abstraction as dba
+    import cnt_collector_node.global_helpers as helpers
     from cnt_collector_node import load_pairs
+    from cnt_collector_node.helper_functions import check_tokens_pair
+
 except ModuleNotFoundError:
     CNT_ENABLED = False
 
@@ -102,29 +105,31 @@ async def retrieve_cnt(requested: list, identity: dict) -> list:
     logger.info("connecting to the cnt database")
     conn = sqlite3.connect(config.CNT_DB_NAME)
     cur = conn.cursor()
-    database_context = {
-        "conn": conn,
-        "cur": cur,
-    }
     res = []
     logger.info("connecting to ogmios")
     ogmios_ws: websocket.WebSocket = websocket.create_connection(config.OGMIOS_URL)
     use_kupo = False
     if config.KUPO_URL:
+        logger.info("using kupo: %s", use_kupo)
         use_kupo = True
     kupo_url = config.KUPO_URL
-    context = {
-        "ogmios_ws": ogmios_ws,
-        "logger": logger,
-        "use_kupo": use_kupo,
-        "kupo_url": kupo_url,
-    }
+    database = dba.DBObject(connection=conn, cursor=cur)
+    app_context = helpers.AppContext(
+        db_name=config.CNT_DB_NAME,
+        database=database,
+        ogmios_url=config.OGMIOS_URL,
+        ogmios_ws=ogmios_ws,
+        kupo_url=kupo_url,
+        use_kupo=use_kupo,
+        main_event=None,
+        thread_event=None,
+        reconnect_event=None,
+    )
     for tokens_pair in requested:
         message, timestamp = await check_tokens_pair(
-            database_context,
-            context,
-            identity,
-            tokens_pair,
+            app_context=app_context,
+            identity=identity,
+            tokens_pair=tokens_pair,
         )
         message = {
             "message": message,
