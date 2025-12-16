@@ -4,5 +4,5 @@
 pre-commit==3.8.0
 pip-upgrader==1.4.15
 pylint==3.3.2
-pytest==8.3.2
+pytest==9.0.2
 tox==4.17.1
