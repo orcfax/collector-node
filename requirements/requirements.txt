@@ -4,5 +4,5 @@ aiohttp==3.11.16
 certifi==2024.7.4
 pydantic==2.8.2
 python-dotenv==1.0.1
-websockets==13.0
+websockets==15.0.1
 simple-sign==0.0.1
