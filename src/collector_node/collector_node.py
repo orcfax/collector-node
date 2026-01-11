@@ -131,14 +131,14 @@ async def retrieve_cnt(requested: list, identity: dict) -> list:
             identity=identity,
             tokens_pair=tokens_pair,
         )
+        if not message:
+            logger.error("no message returned for: '%s'", tokens_pair["name"])
+            continue
         message = {
             "message": message,
             "node_id": identity["node_id"],
             "validation_timestamp": timestamp,
         }
-        if not message:
-            logger.error("no message returned for: '%s'", tokens_pair["name"])
-            continue
         res.append(message)
     return res
 
