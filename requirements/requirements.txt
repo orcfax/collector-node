@@ -1,7 +1,7 @@
 # requirements for the production project.
 
 aiohttp==3.11.16
-certifi==2024.7.4
+certifi==2025.11.12
 pydantic==2.8.2
 python-dotenv==1.0.1
 websockets==13.0
